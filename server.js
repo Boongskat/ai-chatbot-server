@@ -1,44 +1,65 @@
-// server.js — TEMP DEBUG VERSION (Step B)
-// - Opens CORS to all origins to verify connectivity
-// - Logs the Origin header so we can whitelist the exact site later
+// server.js — Render-ready with CORS + health
 
-// 1) Load env first
 import dotenv from "dotenv";
 dotenv.config();
 
-// 2) Core imports
 import express from "express";
 import cors from "cors";
 import OpenAI from "openai";
 
-// 3) App setup
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Body parser
+// 🔒 CORS allow-list
+// - Your live site (same-origin API calls from the Render URL)
+// - localhost for dev
+// - "null" origin temporarily (when opening index.html as file://)
+const ALLOWED_ORIGINS = [
+  "https://ai-chatbot-server-db6g.onrender.com",
+  "http://localhost:3000",
+];
+
 app.use(express.json());
 
-// --- TEMP LOGGING: show the request Origin in Render logs ---
-app.use((req, res, next) => {
-  console.log("Request Origin:", req.headers.origin || "no-origin");
+app.use(
+  cors({
+    origin(origin, cb) {
+      // Allow tools like Postman/cURL (no Origin header)
+      if (!origin) return cb(null, true);
+
+      // Allow file:// pages (browser sends "null" origin). Remove this in prod if not needed.
+      if (origin === "null") return cb(null, true);
+
+      // Allow exact matches in our allow-list
+      if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+
+      // Block everything else
+      return cb(new Error("Not allowed by CORS"));
+    },
+  })
+);
+
+// Optional: minimal origin log to help debug (safe to keep)
+app.use((req, _res, next) => {
+  if (req.headers.origin) {
+    console.log("Request Origin:", req.headers.origin);
+  } else {
+    console.log("Request Origin: no-origin");
+  }
   next();
 });
 
-// --- TEMP CORS: allow ALL origins (debug only) ---
-app.use(cors({ origin: true })); // 👈 this opens the gate so any site can reach your server
-
-// 4) OpenAI client
+// OpenAI client
 const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// 5) Health check (use this URL in your browser to confirm server is up)
-//    https://YOUR-RENDER-APP.onrender.com/health
+// Health check (for uptime monitors)
 app.get("/health", (req, res) => {
   res.status(200).json({ ok: true, ts: Date.now() });
 });
 
-// 6) Chat endpoint
+// Chat endpoint
 app.post("/chat", async (req, res) => {
   try {
     const userMessage = (req.body && req.body.message || "").trim();
@@ -51,7 +72,9 @@ app.post("/chat", async (req, res) => {
       messages: [{ role: "user", content: userMessage }],
     });
 
-    const reply = response?.choices?.[0]?.message?.content || "Sorry, I didn't catch that.";
+    const reply =
+      response?.choices?.[0]?.message?.content ||
+      "Sorry, I didn't catch that.";
     res.json({ reply });
   } catch (err) {
     console.error("Error talking to OpenAI:", err?.response?.data || err.message || err);
@@ -59,7 +82,7 @@ app.post("/chat", async (req, res) => {
   }
 });
 
-// 7) Start server
-app.listen(PORT, () => {
-  console.log(`AI server running on http://localhost:${PORT}`);
+// Start server (Render expects 0.0.0.0 + PORT env var)
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`AI server running on port ${PORT}`);
 });
