@@ -1,4 +1,6 @@
-// server.js — ESM (import syntax)
+// server.js — TEMP DEBUG VERSION (Step B)
+// - Opens CORS to all origins to verify connectivity
+// - Logs the Origin header so we can whitelist the exact site later
 
 // 1) Load env first
 import dotenv from "dotenv";
@@ -13,35 +15,25 @@ import OpenAI from "openai";
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// --- CORS allow-list ---
-// CHANGE these to your real domains.
-// Keep localhost if you test locally.
-const ALLOWED_ORIGINS = [
-  "https://ai-chatbot-server-db6g.onrender.com",
-  "http://localhost:3000"
-];
-
-// Use JSON body parsing
+// Body parser
 app.use(express.json());
 
-// Strict CORS: only allow origins in the list
-app.use(
-  cors({
-    origin(origin, cb) {
-      // Allow non-browser tools (no Origin header), e.g. Postman/cURL
-      if (!origin) return cb(null, true);
-      if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
-      return cb(new Error("Not allowed by CORS"));
-    },
-  })
-);
+// --- TEMP LOGGING: show the request Origin in Render logs ---
+app.use((req, res, next) => {
+  console.log("Request Origin:", req.headers.origin || "no-origin");
+  next();
+});
+
+// --- TEMP CORS: allow ALL origins (debug only) ---
+app.use(cors({ origin: true })); // 👈 this opens the gate so any site can reach your server
 
 // 4) OpenAI client
 const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// 5) Health check (good for uptime monitors)
+// 5) Health check (use this URL in your browser to confirm server is up)
+//    https://YOUR-RENDER-APP.onrender.com/health
 app.get("/health", (req, res) => {
   res.status(200).json({ ok: true, ts: Date.now() });
 });
