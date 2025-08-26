@@ -38,6 +38,19 @@ app.use(
     },
   })
 );
+import rateLimit from "express-rate-limit";
+
+// Limit: 30 requests per minute per IP on /chat
+const chatLimiter = rateLimit({
+  windowMs: 60 * 1000,     // 1 minute
+  max: 30,                 // 30 requests per IP per minute
+  standardHeaders: true,   // adds RateLimit-* headers
+  legacyHeaders: false,    // disables X-RateLimit-* headers
+  message: { error: "Too many requests, please slow down." }
+});
+
+// apply to chat route only
+app.use("/chat", chatLimiter);
 
 // Optional: minimal origin log to help debug (safe to keep)
 app.use((req, _res, next) => {
