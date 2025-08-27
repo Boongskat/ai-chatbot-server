@@ -38,6 +38,8 @@ app.use(
     },
   })
 );
+app.use(express.static("public"));
+
 import rateLimit from "express-rate-limit";
 
 // Limit: 30 requests per minute per IP on /chat
